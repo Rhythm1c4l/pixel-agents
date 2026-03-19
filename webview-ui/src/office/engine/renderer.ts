@@ -47,7 +47,7 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, TILE_SIZE, TileType } from '../types.js';
-import { getWallInstances, hasWallSprites, wallColorToHex } from '../wallTiles.js';
+import { wallColorToHex } from '../wallTiles.js';
 import { getCharacterSprite } from './characters.js';
 import { renderMatrixEffect } from './matrixEffect.js';
 
@@ -575,6 +575,7 @@ export function renderFrame(
   tileColors?: Array<FloorColor | null>,
   layoutCols?: number,
   layoutRows?: number,
+  wallInstances?: FurnitureInstance[],
 ): { offsetX: number; offsetY: number } {
   // Clear
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -606,9 +607,9 @@ export function renderFrame(
     );
   }
 
-  // Build wall instances for z-sorting with furniture and characters
-  const wallInstances = hasWallSprites() ? getWallInstances(tileMap, tileColors, layoutCols) : [];
-  const allFurniture = wallInstances.length > 0 ? [...wallInstances, ...furniture] : furniture;
+  // Merge wall instances (pre-computed by caller) with furniture for z-sorting
+  const resolvedWalls = wallInstances ?? [];
+  const allFurniture = resolvedWalls.length > 0 ? [...resolvedWalls, ...furniture] : furniture;
 
   // Draw walls + furniture + characters (z-sorted)
   const selectedId = selection?.selectedAgentId ?? null;

@@ -1,7 +1,6 @@
 import typescriptEslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
-import pixelAgentsPlugin from './eslint-rules/pixel-agents-rules.mjs';
 
 export default [
   {
@@ -11,7 +10,6 @@ export default [
     plugins: {
       '@typescript-eslint': typescriptEslint.plugin,
       'simple-import-sort': simpleImportSort,
-      'pixel-agents': pixelAgentsPlugin,
     },
 
     languageOptions: {
@@ -34,13 +32,6 @@ export default [
       'no-throw-literal': 'warn',
       'simple-import-sort/imports': 'warn',
       'simple-import-sort/exports': 'warn',
-      'pixel-agents/no-inline-colors': 'warn',
-    },
-  },
-  {
-    files: ['src/constants.ts'],
-    rules: {
-      'pixel-agents/no-inline-colors': 'off',
     },
   },
   eslintConfigPrettier,

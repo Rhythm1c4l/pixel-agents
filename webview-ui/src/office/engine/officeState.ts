@@ -31,6 +31,7 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, Direction, MATRIX_EFFECT_DURATION, TILE_SIZE } from '../types.js';
+import { getWallInstances, hasWallSprites } from '../wallTiles.js';
 import { createCharacter, updateCharacter } from './characters.js';
 import { matrixEffectSeeds } from './matrixEffect.js';
 
@@ -53,6 +54,9 @@ export class OfficeState {
   /** Reverse lookup: sub-agent character ID → parent info */
   subagentMeta: Map<number, { parentAgentId: number; parentToolId: string }> = new Map();
   private nextSubagentId = -1;
+  private _characterArray: Character[] | null = null;
+  private _characterArraySorted: Character[] | null = null;
+  private _wallInstances: FurnitureInstance[] | null = null;
 
   constructor(layout?: OfficeLayout) {
     this.layout = layout || createDefaultLayout();
@@ -72,6 +76,7 @@ export class OfficeState {
     this.blockedTiles = getBlockedTiles(layout.furniture);
     this.rebuildFurnitureInstances();
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles);
+    this._wallInstances = null;
 
     // Shift character positions when grid expands left/up
     if (shift && (shift.col !== 0 || shift.row !== 0)) {
@@ -155,6 +160,17 @@ export class OfficeState {
 
   getLayout(): OfficeLayout {
     return this.layout;
+  }
+
+  /** Get cached wall instances for z-sorting. Recomputed only when layout changes. */
+  getWallInstances(): FurnitureInstance[] {
+    if (!this._wallInstances) {
+      const layout = this.getLayout();
+      this._wallInstances = hasWallSprites()
+        ? getWallInstances(this.tileMap, layout.tileColors ?? [], layout.cols)
+        : [];
+    }
+    return this._wallInstances;
   }
 
   /** Get the blocked-tile key for a character's own seat, or null */
@@ -268,6 +284,8 @@ export class OfficeState {
       ch.matrixEffectSeeds = matrixEffectSeeds();
     }
     this.characters.set(id, ch);
+    this._characterArray = null;
+    this._characterArraySorted = null;
   }
 
   removeAgent(id: number): void {
@@ -439,6 +457,8 @@ export class OfficeState {
     ch.matrixEffectTimer = 0;
     ch.matrixEffectSeeds = matrixEffectSeeds();
     this.characters.set(id, ch);
+    this._characterArray = null;
+    this._characterArraySorted = null;
 
     this.subagentIdMap.set(key, id);
     this.subagentMeta.set(id, { parentAgentId, parentToolId });
@@ -644,6 +664,8 @@ export class OfficeState {
   }
 
   update(dt: number): void {
+    // Characters move each frame — sorted order by Y may change
+    this._characterArraySorted = null;
     // Furniture animation cycling
     const prevFrame = Math.floor(this.furnitureAnimTimer / FURNITURE_ANIM_INTERVAL_SEC);
     this.furnitureAnimTimer += dt;
@@ -689,15 +711,25 @@ export class OfficeState {
     for (const id of toDelete) {
       this.characters.delete(id);
     }
+    if (toDelete.length > 0) {
+      this._characterArray = null;
+      this._characterArraySorted = null;
+    }
   }
 
   getCharacters(): Character[] {
-    return Array.from(this.characters.values());
+    if (!this._characterArray) {
+      this._characterArray = Array.from(this.characters.values());
+    }
+    return this._characterArray;
   }
 
   /** Get character at pixel position (for hit testing). Returns id or null. */
   getCharacterAt(worldX: number, worldY: number): number | null {
-    const chars = this.getCharacters().sort((a, b) => b.y - a.y);
+    if (!this._characterArraySorted) {
+      this._characterArraySorted = [...this.getCharacters()].sort((a, b) => b.y - a.y);
+    }
+    const chars = this._characterArraySorted;
     for (const ch of chars) {
       // Skip characters that are despawning
       if (ch.matrixEffect === 'despawn') continue;

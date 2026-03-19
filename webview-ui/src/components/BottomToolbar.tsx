@@ -4,6 +4,8 @@ import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js';
 import { vscode } from '../vscodeApi.js';
 import { SettingsModal } from './SettingsModal.js';
 
+export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'reconnecting';
+
 interface BottomToolbarProps {
   isEditMode: boolean;
   onOpenClaude: () => void;
@@ -13,12 +15,14 @@ interface BottomToolbarProps {
   alwaysShowOverlay: boolean;
   onToggleAlwaysShowOverlay: () => void;
   workspaceFolders: WorkspaceFolder[];
+  /** Optional connection status indicator for PWA mode */
+  connectionStatus?: ConnectionStatus;
 }
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
-  bottom: 10,
-  left: 10,
+  bottom: 'calc(10px + var(--safe-area-bottom, 0px))',
+  left: 'calc(10px + var(--safe-area-left, 0px))',
   zIndex: 'var(--pixel-controls-z)',
   display: 'flex',
   alignItems: 'center',
@@ -46,6 +50,13 @@ const btnActive: React.CSSProperties = {
   border: '2px solid var(--pixel-accent)',
 };
 
+const CONNECTION_COLORS: Record<ConnectionStatus, string> = {
+  connected: '#5ac88c',
+  connecting: '#cca700',
+  disconnected: '#e55',
+  reconnecting: '#cca700',
+};
+
 export function BottomToolbar({
   isEditMode,
   onOpenClaude,
@@ -55,6 +66,7 @@ export function BottomToolbar({
   alwaysShowOverlay,
   onToggleAlwaysShowOverlay,
   workspaceFolders,
+  connectionStatus,
 }: BottomToolbarProps) {
   const [hovered, setHovered] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -193,6 +205,20 @@ export function BottomToolbar({
           onToggleAlwaysShowOverlay={onToggleAlwaysShowOverlay}
         />
       </div>
+      {connectionStatus !== undefined && (
+        <div
+          title={connectionStatus}
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: CONNECTION_COLORS[connectionStatus],
+            flexShrink: 0,
+            marginLeft: 4,
+            boxShadow: `0 0 4px ${CONNECTION_COLORS[connectionStatus]}`,
+          }}
+        />
+      )}
     </div>
   );
 }

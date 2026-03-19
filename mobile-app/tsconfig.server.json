@@ -2,23 +2,22 @@
 	"compilerOptions": {
 		"module": "Node16",
 		"target": "ES2022",
-		"lib": [
-			"ES2022"
-		],
+		"lib": ["ES2022"],
 		"sourceMap": true,
-		"rootDir": ".",
-		"strict": true
+		"rootDir": "..",
+		"strict": true,
+		"outDir": "dist",
+		"noEmit": true
 	},
 	"include": [
+		"server",
 		"shared",
-		"mobile-app/shared"
+		"../shared/assets"
 	],
 	"exclude": [
 		"node_modules",
-		"webview-ui",
 		"dist",
-		"out",
-		"mobile-app/shared/test",
-		"mobile-app/server"
+		"server/test",
+		"shared/test"
 	]
 }

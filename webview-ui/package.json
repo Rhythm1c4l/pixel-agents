@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "vite --config ../mobile-app/pwa/vite.config.pwa.ts",
+    "build:pwa": "tsc -b && vite build --config ../mobile-app/pwa/vite.config.pwa.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --import tsx/esm --test test/*.test.ts"

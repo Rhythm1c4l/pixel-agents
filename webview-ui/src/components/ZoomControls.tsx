@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
+// Detect touch-primary device for repositioning controls to thumb-reach area
+const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
 import {
   ZOOM_LEVEL_FADE_DELAY_MS,
   ZOOM_LEVEL_FADE_DURATION_SEC,
@@ -14,8 +17,8 @@ interface ZoomControlsProps {
 }
 
 const btnBase: React.CSSProperties = {
-  width: 40,
-  height: 40,
+  width: isTouchDevice ? 48 : 40,
+  height: isTouchDevice ? 48 : 40,
   padding: 0,
   background: 'var(--pixel-bg)',
   color: 'var(--pixel-text)',
@@ -96,12 +99,16 @@ export function ZoomControls({ zoom, onZoomChange }: ZoomControlsProps) {
         </div>
       )}
 
-      {/* Vertically stacked round buttons — top-left */}
+      {/* Vertically stacked round buttons — top-left on desktop, bottom-right on touch */}
       <div
         style={{
           position: 'absolute',
-          top: 8,
-          left: 8,
+          ...(isTouchDevice
+            ? {
+                bottom: 'calc(80px + var(--safe-area-bottom, 0px))',
+                right: 'calc(10px + var(--safe-area-right, 0px))',
+              }
+            : { top: 8, left: 8 }),
           zIndex: 'var(--pixel-controls-z)',
           display: 'flex',
           flexDirection: 'column',

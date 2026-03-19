@@ -22,7 +22,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function startDevServer(base: string, port: number): Promise<ViteDevServer> {
   const server = await createServer({
-    configFile: path.resolve(root, 'vite.config.ts'),
+    configFile: path.resolve(root, '../mobile-app/pwa/vite.config.pwa.ts'),
     base,
     server: { port, strictPort: false },
     logLevel: 'silent',

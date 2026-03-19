@@ -65,3 +65,29 @@ body,
 * {
   font-family: 'FS Pixel Sans', sans-serif;
 }
+
+/* ── Mobile responsive ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    /* Larger hit targets on touch */
+    --pixel-touch-btn-size: 48px;
+  }
+}
+
+/* Ensure proper mobile viewport rendering */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device — larger controls for fat-finger accuracy */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── iOS safe area (notch / home indicator) ──────────────────── */
+/* Store safe area insets as variables so positioned UI elements can offset themselves. */
+:root {
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+}

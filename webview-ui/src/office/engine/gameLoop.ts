@@ -19,8 +19,6 @@ export function startGameLoop(canvas: HTMLCanvasElement, callbacks: GameLoopCall
     lastTime = time;
 
     callbacks.update(dt);
-
-    ctx.imageSmoothingEnabled = false;
     callbacks.render(ctx);
 
     rafId = requestAnimationFrame(frame);

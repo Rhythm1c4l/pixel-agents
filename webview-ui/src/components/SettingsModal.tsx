@@ -1,5 +1,9 @@
 import { useState } from 'react';
 
+const isTouchDevice =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js';
 import { vscode } from '../vscodeApi.js';
 
@@ -55,20 +59,31 @@ export function SettingsModal({
           zIndex: 49,
         }}
       />
-      {/* Centered modal */}
+      {/* Modal — centered on desktop, full-screen on touch */}
       <div
         style={{
           position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
           zIndex: 50,
           background: 'var(--pixel-bg)',
           border: '2px solid var(--pixel-border)',
           borderRadius: 0,
           padding: '4px',
           boxShadow: 'var(--pixel-shadow)',
-          minWidth: 200,
+          ...(isTouchDevice
+            ? {
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }
+            : {
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                minWidth: 200,
+              }),
         }}
       >
         {/* Header with title and X button */}

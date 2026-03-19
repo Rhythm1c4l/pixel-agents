@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Pixel Agents — Compressed Reference
 
 VS Code extension with embedded React webview: pixel art office where AI agents (Claude Code terminals) are animated characters.
@@ -211,3 +215,93 @@ All magic numbers and strings are centralized — never add inline constants to 
 - `WebviewViewProvider` (not `WebviewPanel`) — lives in panel area alongside terminal
 - Inline esbuild problem matcher (no extra extension needed)
 - Webview is separate Vite project with own `node_modules`/`tsconfig`
+
+## Function Map
+
+### Backend
+
+| Function | Defined in | Called from | Description |
+|----------|-----------|-------------|-------------|
+| `activate()` | src/extension.ts | VS Code entrypoint | Registers webview provider & commands |
+| `deactivate()` | src/extension.ts | VS Code entrypoint | Disposes provider |
+| `launchNewTerminal()` | src/agentManager.ts | PixelAgentsViewProvider | Creates terminal + agent, polls for JSONL |
+| `removeAgent()` | src/agentManager.ts | agentManager, PixelAgentsViewProvider | Cleanup: stop watchers, timers, persist |
+| `restoreAgents()` | src/agentManager.ts | PixelAgentsViewProvider | Reconnect persisted agents to live terminals |
+| `persistAgents()` | src/agentManager.ts | agentManager, PixelAgentsViewProvider | Save agents to workspace state |
+| `sendExistingAgents()` | src/agentManager.ts | PixelAgentsViewProvider | Post agent list to webview |
+| `sendLayout()` | src/agentManager.ts | PixelAgentsViewProvider | Post layout + default to webview |
+| `getProjectDirPath()` | src/agentManager.ts | agentManager, PixelAgentsViewProvider | Compute ~/.claude/projects/{hash}/ |
+| `startFileWatching()` | src/fileWatcher.ts | agentManager | fs.watch + fs.watchFile + polling |
+| `readNewLines()` | src/fileWatcher.ts | fileWatcher | Read delta from JSONL file |
+| `ensureProjectScan()` | src/fileWatcher.ts | agentManager, PixelAgentsViewProvider | Start 1s interval scan for new JSONL |
+| `scanForNewJsonlFiles()` | src/fileWatcher.ts | fileWatcher (interval) | Detect /clear via new JSONL adoption |
+| `processTranscriptLine()` | src/transcriptParser.ts | fileWatcher | Parse JSON, extract tools, send tool messages |
+| `formatToolStatus()` | src/transcriptParser.ts | transcriptParser | Generate human-readable tool status |
+| `clearAgentActivity()` | src/timerManager.ts | transcriptParser | Reset all active tool state + timers |
+| `startWaitingTimer()` | src/timerManager.ts | transcriptParser | Start 5s idle timer |
+| `startPermissionTimer()` | src/timerManager.ts | transcriptParser | Start 7s timer for permission bubble |
+| `readLayoutFromFile()` | src/layoutPersistence.ts | PixelAgentsViewProvider, layoutPersistence | Read ~/.pixel-agents/layout.json |
+| `writeLayoutToFile()` | src/layoutPersistence.ts | PixelAgentsViewProvider, layoutPersistence | Atomic write via .tmp rename |
+| `migrateAndLoadLayout()` | src/layoutPersistence.ts | agentManager | Load with workspace state migration |
+| `watchLayoutFile()` | src/layoutPersistence.ts | PixelAgentsViewProvider | Hybrid fs.watch + 2s polling for cross-window sync |
+| `loadFurnitureAssets()` | src/assetLoader.ts | PixelAgentsViewProvider | Scan furniture dirs, load PNGs → SpriteData |
+| `loadCharacterSprites()` | src/assetLoader.ts | PixelAgentsViewProvider | Load 6 pre-colored character PNG sets |
+| `loadFloorTiles()` | src/assetLoader.ts | PixelAgentsViewProvider | Load floors.png (7 patterns) |
+| `loadWallTiles()` | src/assetLoader.ts | PixelAgentsViewProvider | Load walls.png (16 auto-tile pieces) |
+| `loadDefaultLayout()` | src/assetLoader.ts | PixelAgentsViewProvider | Load assets/default-layout.json |
+| `sendAssetsToWebview()` | src/assetLoader.ts | PixelAgentsViewProvider | Post furniture catalog + sprites |
+
+### Frontend
+
+| Function | Defined in | Called from | Description |
+|----------|-----------|-------------|-------------|
+| `useExtensionMessages()` | webview-ui/src/hooks/useExtensionMessages.ts | App.tsx | Listen to extension messages, manage agent/layout state |
+| `useEditorActions()` | webview-ui/src/hooks/useEditorActions.ts | App.tsx | Return editor paint/place/remove/move callbacks |
+| `useEditorKeyboard()` | webview-ui/src/hooks/useEditorKeyboard.ts | App.tsx | Bind Ctrl+Z/Y, R, T, Esc shortcuts |
+| `buildDynamicCatalog()` | webview-ui/src/office/layout/furnitureCatalog.ts | useExtensionMessages | Build rotation/state/animation groups from assets |
+| `getCatalogEntry()` | webview-ui/src/office/layout/furnitureCatalog.ts | renderer, editor, layoutSerializer | Lookup sprite + metadata by asset ID |
+| `getRotatedType()` | webview-ui/src/office/layout/furnitureCatalog.ts | EditorToolbar, editorActions | Cycle through rotation group orientations |
+| `getToggledType()` | webview-ui/src/office/layout/furnitureCatalog.ts | editorActions | Swap on↔off state |
+| `layoutToTileMap()` | webview-ui/src/office/layout/layoutSerializer.ts | OfficeState, GameLoop | Convert flat tile array → 2D grid |
+| `layoutToFurnitureInstances()` | webview-ui/src/office/layout/layoutSerializer.ts | OfficeState, renderer | Convert PlacedFurniture → renderable instances |
+| `layoutToSeats()` | webview-ui/src/office/layout/layoutSerializer.ts | OfficeState | Extract chair footprints → seats |
+| `getBlockedTiles()` | webview-ui/src/office/layout/layoutSerializer.ts | OfficeState | Furniture collision tiles (walkability) |
+| `createDefaultLayout()` | webview-ui/src/office/layout/layoutSerializer.ts | OfficeState constructor | Generate 20×11 empty office |
+| `isWalkable()` | webview-ui/src/office/layout/tileMap.ts | tileMap, characters | Check tile is passable |
+| `findPath()` | webview-ui/src/office/layout/tileMap.ts | characters | BFS 4-connected pathfinding |
+| `paintTile()` | webview-ui/src/office/editor/editorActions.ts | useEditorActions | Paint single floor/wall tile |
+| `placeFurniture()` | webview-ui/src/office/editor/editorActions.ts | useEditorActions | Add furniture to layout |
+| `removeFurniture()` | webview-ui/src/office/editor/editorActions.ts | useEditorActions | Delete furniture by uid |
+| `canPlaceFurniture()` | webview-ui/src/office/editor/editorActions.ts | editorActions | Collision + validity check |
+| `expandLayout()` | webview-ui/src/office/editor/editorActions.ts | editorActions | Grow grid left/right/up/down |
+| `createCharacter()` | webview-ui/src/office/engine/characters.ts | OfficeState | Initialize Character FSM |
+| `updateCharacter()` | webview-ui/src/office/engine/characters.ts | GameLoop | Update FSM state, animation, position |
+| `getCharacterSprite()` | webview-ui/src/office/engine/characters.ts | renderer | Resolve sprite for current frame/direction/state |
+| `colorizeSprite()` | webview-ui/src/office/colorize.ts | colorize | Photoshop Colorize: grayscale → HSL |
+| `adjustSprite()` | webview-ui/src/office/colorize.ts | colorize, spriteData | HSL shift (hue rotation for diversity) |
+| `getColorizedSprite()` | webview-ui/src/office/colorize.ts | layoutSerializer | Cached sprite colorization |
+| `setCharacterTemplates()` | webview-ui/src/office/sprites/spriteData.ts | useExtensionMessages | Cache loaded character PNG sprite sets |
+| `getCharacterSprites()` | webview-ui/src/office/sprites/spriteData.ts | characters, renderer | Resolved sprites (with hue shift) |
+| `hueShiftSprites()` | webview-ui/src/office/sprites/spriteData.ts | spriteData | Apply hue rotation to all frames |
+| `getCachedSprite()` | webview-ui/src/office/sprites/spriteCache.ts | renderer | Offscreen canvas sprite cache (per-zoom) |
+| `getOutlineSprite()` | webview-ui/src/office/sprites/spriteCache.ts | renderer | Selection outline sprite |
+| `renderMatrixEffect()` | webview-ui/src/office/engine/matrixEffect.ts | renderer | Digital rain spawn/despawn animation |
+| `playDoneSound()` | webview-ui/src/notificationSound.ts | useExtensionMessages | Web Audio API chime (E5→E6) |
+| `unlockAudio()` | webview-ui/src/notificationSound.ts | OfficeCanvas | Resume suspended AudioContext |
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Extension Host | TypeScript, VS Code Webview API, Node.js fs/path |
+| Webview Frontend | React 19, TypeScript, Canvas 2D (pixel-perfect rendering) |
+| Game Engine | Custom FSM (idle→walk→type/read), BFS pathfinding, rAF game loop |
+| Asset Pipeline | pngjs (PNG→SpriteData), manifest-based furniture catalogs |
+| Styling | CSS variables (pixel-art aesthetic), no CSS frameworks |
+| Audio | Web Audio API (sine wave synthesis) |
+| Persistence | JSON files (layout, agents), JSONL watching (agent activity) |
+| Extension Build | esbuild (CommonJS bundle), TypeScript 5.9 |
+| Webview Build | Vite 8, @vitejs/plugin-react |
+| Linting | ESLint 10, Prettier, typescript-eslint |
+| Testing | Node.js test runner via tsx |
+| Package Manager | npm |

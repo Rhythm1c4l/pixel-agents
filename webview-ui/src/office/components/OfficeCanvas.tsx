@@ -8,6 +8,7 @@ import {
   ZOOM_MIN,
   ZOOM_SCROLL_THRESHOLD,
 } from '../../constants.js';
+import { useTouchGestures } from '../../../../mobile-app/pwa/hooks/useTouchGestures.js';
 import { unlockAudio } from '../../notificationSound.js';
 import { vscode } from '../../vscodeApi.js';
 import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js';
@@ -252,6 +253,7 @@ export function OfficeCanvas({
           characters: officeState.characters,
         };
 
+        const wallInstances = officeState.getWallInstances();
         const { offsetX, offsetY } = renderFrame(
           ctx,
           w,
@@ -267,6 +269,7 @@ export function OfficeCanvas({
           officeState.getLayout().tileColors,
           officeState.getLayout().cols,
           officeState.getLayout().rows,
+          wallInstances,
         );
         offsetRef.current = { x: offsetX, y: offsetY };
 
@@ -791,6 +794,111 @@ export function OfficeCanvas({
     if (e.button === 1) e.preventDefault();
   }, []);
 
+  const touchHandlers = useTouchGestures({
+    onTap: (clientX, clientY) => {
+      unlockAudio();
+      if (isEditMode) {
+        // Tap in edit mode: tile action or furniture placement
+        const tile = screenToTile(clientX, clientY);
+        const pos = screenToWorld(clientX, clientY);
+        if (pos && hitTestRotateButton(pos.deviceX, pos.deviceY)) {
+          onRotateSelected();
+          return;
+        }
+        if (pos && hitTestDeleteButton(pos.deviceX, pos.deviceY)) {
+          onDeleteSelected();
+          return;
+        }
+        if (tile) {
+          onEditorTileAction(tile.col, tile.row);
+        }
+        return;
+      }
+      // Non-edit: treat same as mouse click
+      const pos = screenToWorld(clientX, clientY);
+      if (!pos) return;
+      const hitId = officeState.getCharacterAt(pos.worldX, pos.worldY);
+      if (hitId !== null) {
+        officeState.dismissBubble(hitId);
+        if (officeState.selectedAgentId === hitId) {
+          officeState.selectedAgentId = null;
+          officeState.cameraFollowId = null;
+        } else {
+          officeState.selectedAgentId = hitId;
+          officeState.cameraFollowId = hitId;
+        }
+        onClick(hitId);
+        return;
+      }
+      if (officeState.selectedAgentId !== null) {
+        const selectedCh = officeState.characters.get(officeState.selectedAgentId);
+        if (selectedCh && !selectedCh.isSubagent) {
+          const tile = screenToTile(clientX, clientY);
+          if (tile) {
+            const seatId = officeState.getSeatAtTile(tile.col, tile.row);
+            if (seatId) {
+              const seat = officeState.seats.get(seatId);
+              if (seat) {
+                if (selectedCh.seatId === seatId) {
+                  officeState.sendToSeat(officeState.selectedAgentId);
+                  officeState.selectedAgentId = null;
+                  officeState.cameraFollowId = null;
+                  return;
+                } else if (!seat.assigned) {
+                  officeState.reassignSeat(officeState.selectedAgentId, seatId);
+                  officeState.selectedAgentId = null;
+                  officeState.cameraFollowId = null;
+                  const seats: Record<number, { palette: number; seatId: string | null }> = {};
+                  for (const ch of officeState.characters.values()) {
+                    if (ch.isSubagent) continue;
+                    seats[ch.id] = { palette: ch.palette, seatId: ch.seatId };
+                  }
+                  vscode.postMessage({ type: 'saveAgentSeats', seats });
+                  return;
+                }
+              }
+            }
+          }
+        }
+        officeState.selectedAgentId = null;
+        officeState.cameraFollowId = null;
+      }
+    },
+    onLongPress: (clientX, clientY) => {
+      // Long-press = erase (right-click equivalent in edit mode)
+      if (!isEditMode) return;
+      const tile = screenToTile(clientX, clientY);
+      if (
+        tile &&
+        tile.col >= 0 &&
+        tile.col < officeState.getLayout().cols &&
+        tile.row >= 0 &&
+        tile.row < officeState.getLayout().rows
+      ) {
+        onEditorEraseAction(tile.col, tile.row);
+      }
+    },
+    onPanStart: (_clientX: number, _clientY: number) => {
+      officeState.cameraFollowId = null;
+    },
+    onPanMove: (deltaX, deltaY) => {
+      const dpr = window.devicePixelRatio || 1;
+      panRef.current = clampPan(
+        panRef.current.x + deltaX * dpr,
+        panRef.current.y + deltaY * dpr,
+      );
+    },
+    onPanEnd: () => {
+      // nothing — pan position already tracked in panRef
+    },
+    onPinchZoom: (zoomDelta) => {
+      const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom + Math.round(zoomDelta)));
+      if (newZoom !== zoom) {
+        onZoomChange(newZoom);
+      }
+    },
+  });
+
   return (
     <div
       ref={containerRef}
@@ -812,7 +920,11 @@ export function OfficeCanvas({
         onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
         onContextMenu={handleContextMenu}
-        style={{ display: 'block' }}
+        onTouchStart={touchHandlers.onTouchStart}
+        onTouchMove={touchHandlers.onTouchMove}
+        onTouchEnd={touchHandlers.onTouchEnd}
+        onTouchCancel={touchHandlers.onTouchCancel}
+        style={{ display: 'block', touchAction: 'none' }}
       />
     </div>
   );

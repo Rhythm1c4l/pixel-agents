@@ -229,6 +229,11 @@ function ColorSlider({
 
 const DEFAULT_FURNITURE_COLOR: FloorColor = { h: 0, s: 0, b: 0, c: 0 };
 
+// Detect touch-primary device for mobile layout adjustments
+const isTouchPrimary =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
 export function EditorToolbar({
   activeTool,
   selectedTileType,
@@ -251,6 +256,8 @@ export function EditorToolbar({
   const [showColor, setShowColor] = useState(false);
   const [showWallColor, setShowWallColor] = useState(false);
   const [showFurnitureColor, setShowFurnitureColor] = useState(false);
+  // Mobile: collapsed state for the full panel
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Build dynamic catalog from loaded assets
   useEffect(() => {
@@ -330,10 +337,29 @@ export function EditorToolbar({
         gap: 6,
         boxShadow: '2px 2px 0px #0a0a14',
         maxWidth: 'calc(100vw - 20px)',
+        // On touch devices: constrain height and enable scroll when expanded
+        ...(isTouchPrimary && !isCollapsed
+          ? { maxHeight: '55vh', overflowY: 'auto' }
+          : {}),
       }}
     >
       {/* Tool row — at the bottom */}
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Mobile collapse toggle */}
+        {isTouchPrimary && (
+          <button
+            style={{
+              ...btnStyle,
+              padding: '3px 6px',
+              fontSize: '18px',
+              color: 'rgba(255,255,255,0.5)',
+            }}
+            onClick={() => setIsCollapsed((v) => !v)}
+            title={isCollapsed ? 'Expand editor' : 'Collapse editor'}
+          >
+            {isCollapsed ? '▲' : '▼'}
+          </button>
+        )}
         <button
           style={isFloorActive ? activeBtnStyle : btnStyle}
           onClick={() => onToolChange(EditTool.TILE_PAINT)}
@@ -363,6 +389,9 @@ export function EditorToolbar({
           Furniture
         </button>
       </div>
+
+      {/* Sub-panels hidden when collapsed on mobile */}
+      {!isCollapsed && <>
 
       {/* Sub-panel: Floor tiles — stacked bottom-to-top via column-reverse */}
       {isFloorActive && (
@@ -732,6 +761,8 @@ export function EditorToolbar({
           )}
         </div>
       )}
+
+      </>}
     </div>
   );
 }

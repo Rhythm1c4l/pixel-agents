@@ -1,0 +1,20 @@
+{
+  "name": "Pixel Agents",
+  "short_name": "Pixel Agents",
+  "description": "Monitor your Claude Code agents as pixel art characters in a virtual office",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1e1e2e",
+  "theme_color": "#1e1e2e",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer tools", "utilities"],
+  "lang": "en"
+}
